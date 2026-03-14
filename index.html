@@ -48,6 +48,12 @@
         canvas {
             display: block;
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+        
+        canvas:focus {
+            outline: none;
         }
         
         .controls {
@@ -187,7 +193,7 @@
                     board[i][j] = null;
                 }
             }
-            boardDrawn = false;
+            offscreenCanvas = null;  // 重建棋盘背景
         }
         
         // 绘制整盘棋 - 优化：棋盘只画一次
@@ -248,9 +254,50 @@
             ctx.fill();
         }
         
-        // 绘制整盘棋
+        // 绘制整盘棋 - 使用双缓冲
+        let offscreenCanvas = null;
+        
         function draw() {
-            drawBoard();
+            // 首次创建离屏canvas
+            if (!offscreenCanvas) {
+                offscreenCanvas = document.createElement('canvas');
+                offscreenCanvas.width = canvas.width;
+                offscreenCanvas.height = canvas.height;
+                const offCtx = offscreenCanvas.getContext('2d');
+                
+                // 绘制棋盘到底层canvas
+                offCtx.fillStyle = '#deb887';
+                offCtx.fillRect(0, 0, 450, 450);
+                
+                offCtx.strokeStyle = '#000';
+                offCtx.lineWidth = 1;
+                
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    offCtx.beginPath();
+                    offCtx.moveTo(MARGIN, MARGIN + i * CELL_SIZE);
+                    offCtx.lineTo(MARGIN + (GRID_SIZE - 1) * CELL_SIZE, MARGIN + i * CELL_SIZE);
+                    offCtx.stroke();
+                    
+                    offCtx.beginPath();
+                    offCtx.moveTo(MARGIN + i * CELL_SIZE, MARGIN);
+                    offCtx.lineTo(MARGIN + i * CELL_SIZE, MARGIN + (GRID_SIZE - 1) * CELL_SIZE);
+                    offCtx.stroke();
+                }
+                
+                // 星位
+                const starPoints = [[3,3], [3,11], [11,3], [11,11], [7,7]];
+                offCtx.fillStyle = '#000';
+                for (const [x, y] of starPoints) {
+                    offCtx.beginPath();
+                    offCtx.arc(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, 4, 0, Math.PI * 2);
+                    offCtx.fill();
+                }
+            }
+            
+            // 复制背景到主canvas
+            ctx.drawImage(offscreenCanvas, 0, 0);
+            
+            // 绘制棋子
             for (let i = 0; i < GRID_SIZE; i++) {
                 for (let j = 0; j < GRID_SIZE; j++) {
                     if (board[i][j]) {
