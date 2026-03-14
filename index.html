@@ -187,10 +187,15 @@
                     board[i][j] = null;
                 }
             }
+            boardDrawn = false;
         }
         
-        // 绘制棋盘
+        // 绘制整盘棋 - 优化：棋盘只画一次
+        let boardDrawn = false;
+        
         function drawBoard() {
+            if (boardDrawn) return;
+            
             ctx.fillStyle = '#deb887';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
@@ -223,7 +228,7 @@
             }
         }
         
-        // 绘制棋子
+        // 绘制棋子 - 优化：去掉阴影
         function drawPiece(row, col, color) {
             const x = MARGIN + col * CELL_SIZE;
             const y = MARGIN + row * CELL_SIZE;
@@ -241,12 +246,6 @@
             }
             ctx.fillStyle = gradient;
             ctx.fill();
-            
-            // 棋子阴影
-            ctx.shadowColor = 'rgba(0,0,0,0.3)';
-            ctx.shadowBlur = 5;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
         }
         
         // 绘制整盘棋
