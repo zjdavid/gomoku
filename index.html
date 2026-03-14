@@ -113,8 +113,12 @@
             color: white;
         }
         
-        .btn-restart:hover {
-            background: #c0392b;
+        .btn-rules {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .btn-restart:hover, .btn-rules:hover {
             transform: scale(1.05);
         }
         
@@ -182,6 +186,82 @@
         .winner.show {
             display: block;
         }
+        
+        /* 规则弹窗 */
+        .rules-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .rules-modal.show {
+            display: flex;
+        }
+        
+        .rules-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .rules-content h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+        
+        .rules-content h3 {
+            color: #4fc3f7;
+            margin: 15px 0 10px;
+        }
+        
+        .rules-content p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .rules-content ul {
+            margin-left: 20px;
+        }
+        
+        .rules-content li {
+            margin: 5px 0;
+        }
+        
+        .rules-content .note {
+            color: #ff6b6b;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        .btn-close {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px;
+            background: #4fc3f7;
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -200,7 +280,35 @@
     
     <div class="controls">
         <button class="btn-undo" onclick="undo()">↩ 悔棋</button>
+        <button class="btn-rules" onclick="showRules()">📋 规则</button>
         <button class="btn-restart" onclick="restart()">🔄 重新开始</button>
+    </div>
+    
+    <!-- 规则弹窗 -->
+    <div class="rules-modal" id="rulesModal">
+        <div class="rules-content">
+            <h2>五子棋规则</h2>
+            <div class="rules-body">
+                <h3>基本规则</h3>
+                <p>黑白双方轮流落子，最先在横、竖、斜任意方向连成五子者获胜。</p>
+                
+                <h3>禁手规则（黑方）</h3>
+                <p>黑方以下走法犯规判负：</p>
+                <ul>
+                    <li><strong>双三：</strong>同时形成两个活三</li>
+                    <li><strong>双四：</strong>同时形成两个冲四</li>
+                    <li><strong>长连：</strong>形成六子或更多连子</li>
+                </ul>
+                <p class="note">⚠️ 白方获胜，黑方犯规判负</p>
+                
+                <h3>操作说明</h3>
+                <ul>
+                    <li>点击/触摸落子</li>
+                    <li>双指缩放棋盘</li>
+                </ul>
+            </div>
+            <button class="btn-close" onclick="hideRules()">我知道了</button>
+        </div>
     </div>
     
     <div class="winner" id="winner">
@@ -218,12 +326,14 @@
             canvas.width = maxSize;
             canvas.height = maxSize;
             
-            // 重新计算格子大小
+            // 重新计算格子大小 - 棋子也相应调整
             CELL_SIZE = (maxSize - 30) / (GRID_SIZE - 1);
+            PIECE_RADIUS = CELL_SIZE * 0.38;  // 棋子大小为格子的38%
         }
         
         const GRID_SIZE = 15;
         let CELL_SIZE = 30;
+        let PIECE_RADIUS = 11;  // 棋子半径
         const MARGIN = 15;
         
         let board = [];
@@ -287,9 +397,9 @@
             const y = MARGIN + row * CELL_SIZE;
             
             ctx.beginPath();
-            ctx.arc(x, y, 13, 0, Math.PI * 2);
+            ctx.arc(x, y, PIECE_RADIUS, 0, Math.PI * 2);
             
-            const gradient = ctx.createRadialGradient(x - 3, y - 3, 2, x, y, 13);
+            const gradient = ctx.createRadialGradient(x - PIECE_RADIUS/3, y - PIECE_RADIUS/3, 1, x, y, PIECE_RADIUS);
             if (color === 'black') {
                 gradient.addColorStop(0, '#444');
                 gradient.addColorStop(1, '#000');
@@ -396,9 +506,17 @@
             board[row][col] = currentPlayer;
             draw();
             
+            // 先检查是否五连
             if (checkWin(row, col)) {
                 gameOver = true;
                 showWinner(currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
+                return;
+            }
+            
+            // 检查黑棋禁手
+            if (currentPlayer === 'black' && checkForbidden(row, col)) {
+                gameOver = true;
+                showWinner('⚪ 白方\n(黑方禁手犯规！)');
                 return;
             }
             
@@ -446,6 +564,104 @@
             return false;
         }
         
+        // 检查禁手（黑棋双三、双四、长连）
+        function checkForbidden(row, col) {
+            if (currentPlayer !== 'black') return false;
+            
+            const directions = [
+                [[0, 1], [0, -1]],
+                [[1, 0], [-1, 0]],
+                [[1, 1], [-1, -1]],
+                [[1, -1], [-1, 1]]
+            ];
+            
+            // 检测长连（六子及以上）
+            for (const [dir1, dir2] of directions) {
+                let count = 1;
+                for (let i = 1; i < 6; i++) {
+                    const r = row + dir1[0] * i;
+                    const c = col + dir1[1] * i;
+                    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE && board[r][c] === 'black') count++;
+                    else break;
+                }
+                for (let i = 1; i < 6; i++) {
+                    const r = row + dir2[0] * i;
+                    const c = col + dir2[1] * i;
+                    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE && board[r][c] === 'black') count++;
+                    else break;
+                }
+                if (count >= 6) return true; // 长连
+            }
+            
+            // 检测双四（两个冲四）
+            let fourCount = 0;
+            for (const [dir1, dir2] of directions) {
+                if (isFour(row, col, dir1, dir2)) fourCount++;
+            }
+            if (fourCount >= 2) return true; // 双四
+            
+            // 检测双三（两个活三）
+            let threeCount = 0;
+            for (const [dir1, dir2] of directions) {
+                if (isThree(row, col, dir1, dir2)) threeCount++;
+            }
+            if (threeCount >= 2) return true; // 双三
+            
+            return false;
+        }
+        
+        // 检测冲四
+        function isFour(row, col, dir1, dir2) {
+            let openEnds = 0;
+            let count = 1;
+            
+            // 正方向
+            for (let i = 1; i < 5; i++) {
+                const r = row + dir1[0] * i;
+                const c = col + dir1[1] * i;
+                if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE || board[r][c] === 'white') break;
+                if (board[r][c] === 'black') count++;
+                else { openEnds++; break; }
+            }
+            
+            // 反方向
+            for (let i = 1; i < 5; i++) {
+                const r = row + dir2[0] * i;
+                const c = col + dir2[1] * i;
+                if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE || board[r][c] === 'white') break;
+                if (board[r][c] === 'black') count++;
+                else { openEnds++; break; }
+            }
+            
+            return count >= 4 && openEnds >= 1;
+        }
+        
+        // 检测活三
+        function isThree(row, col, dir1, dir2) {
+            let openEnds = 0;
+            let count = 1;
+            
+            // 正方向
+            for (let i = 1; i < 5; i++) {
+                const r = row + dir1[0] * i;
+                const c = col + dir1[1] * i;
+                if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE || board[r][c] === 'white') break;
+                if (board[r][c] === 'black') count++;
+                else { openEnds++; break; }
+            }
+            
+            // 反方向
+            for (let i = 1; i < 5; i++) {
+                const r = row + dir2[0] * i;
+                const c = col + dir2[1] * i;
+                if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE || board[r][c] === 'white') break;
+                if (board[r][c] === 'black') count++;
+                else { openEnds++; break; }
+            }
+            
+            return count === 3 && openEnds === 2;
+        }
+        
         // 显示胜利者
         function showWinner(winner) {
             document.getElementById('winnerText').textContent = winner + ' 获胜！🎉';
@@ -471,6 +687,45 @@
             draw();
             updateStatus();
         }
+        
+        // 显示规则
+        function showRules() {
+            document.getElementById('rulesModal').classList.add('show');
+        }
+        
+        // 隐藏规则
+        function hideRules() {
+            document.getElementById('rulesModal').classList.remove('show');
+        }
+        
+        // 双指缩放
+        let initialDistance = 0;
+        let currentScale = 1;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                initialDistance = Math.sqrt(dx * dx + dy * dy);
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDistance > 0) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                const scale = distance / initialDistance;
+                canvas.style.transform = `scale(${scale})`;
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchend', (e) => {
+            initialDistance = 0;
+        });
         
         // 重新开始
         function restart() {
