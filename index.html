@@ -184,7 +184,96 @@
         }
         
         .winner.show {
-            display: block;
+            display: flex;
+        }
+        
+        .winner-content {
+            text-align: center;
+        }
+        
+        .winner-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        .winner-buttons button {
+            padding: 12px 25px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .winner-buttons button:first-child {
+            background: #4fc3f7;
+            color: #000;
+        }
+        
+        .winner-buttons button:last-child {
+            background: #ffd700;
+            color: #000;
+        }
+        
+        /* 复盘弹窗 */
+        .replay-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .replay-modal.show {
+            display: flex;
+        }
+        
+        .replay-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .replay-content h2 {
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+        
+        .replay-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .replay-controls button {
+            padding: 8px 15px;
+            background: #4fc3f7;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .replay-controls span {
+            min-width: 80px;
+        }
+        
+        .replay-board {
+            background: #deb887;
+            border-radius: 10px;
+            padding: 10px;
+            display: inline-block;
         }
         
         /* 规则弹窗 */
@@ -312,7 +401,29 @@
     </div>
     
     <div class="winner" id="winner">
-        <div id="winnerText"></div>
+        <div class="winner-content">
+            <div id="winnerText"></div>
+            <div class="winner-buttons">
+                <button onclick="closeWinner()">关闭查看棋局</button>
+                <button onclick="showReplay()">复盘</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 复盘弹窗 -->
+    <div class="replay-modal" id="replayModal">
+        <div class="replay-content">
+            <h2>棋局复盘</h2>
+            <div class="replay-controls">
+                <button onclick="prevStep()">◀ 上一步</button>
+                <span id="stepInfo">第 0 步</span>
+                <button onclick="nextStep()">下一步 ▶</button>
+            </div>
+            <div class="replay-board">
+                <canvas id="replayCanvas" width="350" height="350"></canvas>
+            </div>
+            <button class="btn-close" onclick="closeReplay()">关闭</button>
+        </div>
     </div>
 
     <script>
@@ -668,6 +779,115 @@
             document.getElementById('winner').classList.add('show');
         }
         
+        // 关闭胜利弹窗
+        function closeWinner() {
+            document.getElementById('winner').classList.remove('show');
+        }
+        
+        // 复盘相关变量
+        let currentStep = 0;
+        let replayBoard = [];
+        
+        // 显示复盘
+        function showReplay() {
+            currentStep = 0;
+            document.getElementById('winner').classList.remove('show');
+            document.getElementById('replayModal').classList.add('show');
+            drawReplay();
+        }
+        
+        // 关闭复盘
+        function closeReplay() {
+            document.getElementById('replayModal').classList.remove('show');
+        }
+        
+        // 上一步
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                drawReplay();
+            }
+        }
+        
+        // 下一步
+        function nextStep() {
+            if (currentStep < history.length) {
+                currentStep++;
+                drawReplay();
+            }
+        }
+        
+        // 绘制复盘
+        function drawReplay() {
+            const replayCanvas = document.getElementById('replayCanvas');
+            const replayCtx = replayCanvas.getContext('2d');
+            const cellSize = 22;
+            const margin = 12;
+            
+            // 重建棋盘
+            replayBoard = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+                replayBoard[i] = [];
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    replayBoard[i][j] = null;
+                }
+            }
+            
+            // 逐步落子
+            for (let i = 0; i < currentStep; i++) {
+                const move = history[i];
+                replayBoard[move.row][move.col] = move.player;
+            }
+            
+            // 绘制棋盘背景
+            replayCtx.fillStyle = '#deb887';
+            replayCtx.fillRect(0, 0, replayCanvas.width, replayCanvas.height);
+            
+            // 绘制网格
+            replayCtx.strokeStyle = '#000';
+            replayCtx.lineWidth = 1;
+            for (let i = 0; i < GRID_SIZE; i++) {
+                replayCtx.beginPath();
+                replayCtx.moveTo(margin, margin + i * cellSize);
+                replayCtx.lineTo(margin + (GRID_SIZE - 1) * cellSize, margin + i * cellSize);
+                replayCtx.stroke();
+                
+                replayCtx.beginPath();
+                replayCtx.moveTo(margin + i * cellSize, margin);
+                replayCtx.lineTo(margin + i * cellSize, margin + (GRID_SIZE - 1) * cellSize);
+                replayCtx.stroke();
+            }
+            
+            // 绘制棋子
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (replayBoard[i][j]) {
+                        const x = margin + j * cellSize;
+                        const y = margin + i * cellSize;
+                        
+                        replayCtx.beginPath();
+                        replayCtx.arc(x, y, 9, 0, Math.PI * 2);
+                        if (replayBoard[i][j] === 'black') {
+                            replayCtx.fillStyle = '#000';
+                        } else {
+                            replayCtx.fillStyle = '#fff';
+                        }
+                        replayCtx.fill();
+                        
+                        // 标记最后一步
+                        if (currentStep > 0 && i === history[currentStep-1].row && j === history[currentStep-1].col) {
+                            replayCtx.strokeStyle = '#ff0000';
+                            replayCtx.lineWidth = 2;
+                            replayCtx.stroke();
+                        }
+                    }
+                }
+            }
+            
+            // 更新步数显示
+            document.getElementById('stepInfo').textContent = `第 ${currentStep} / ${history.length} 步`;
+        }
+        
         // 更新状态显示
         function updateStatus() {
             document.getElementById('status').textContent = '当前回合: ' + (currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
@@ -707,6 +927,7 @@
             draw();
             updateStatus();
             document.getElementById('winner').classList.remove('show');
+            document.getElementById('replayModal').classList.remove('show');
         }
         
         // 初始化
