@@ -581,8 +581,11 @@
             if (gameOver) return;
             
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            // 考虑CSS缩放
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
             
             const col = Math.round((x - MARGIN) / CELL_SIZE);
             const row = Math.round((y - MARGIN) / CELL_SIZE);
@@ -599,8 +602,10 @@
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const x = touch.clientX - rect.left;
-            const y = touch.clientY - rect.top;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (touch.clientX - rect.left) * scaleX;
+            const y = (touch.clientY - rect.top) * scaleY;
             
             const col = Math.round((x - MARGIN) / CELL_SIZE);
             const row = Math.round((y - MARGIN) / CELL_SIZE);
