@@ -433,19 +433,19 @@
         // 响应式棋盘大小
         function resizeCanvas() {
             const screenWidth = window.innerWidth;
-            const maxSize = Math.min(screenWidth - 40, 450);
+            const maxSize = Math.min(screenWidth - 30, 450);
             canvas.width = maxSize;
             canvas.height = maxSize;
             
             // 重新计算格子大小 - 棋子也相应调整
-            CELL_SIZE = (maxSize - 30) / (GRID_SIZE - 1);
-            PIECE_RADIUS = CELL_SIZE * 0.38;  // 棋子大小为格子的38%
+            CELL_SIZE = (maxSize - MARGIN * 2) / (GRID_SIZE - 1);
+            PIECE_RADIUS = CELL_SIZE * 0.38;
         }
         
         const GRID_SIZE = 15;
         let CELL_SIZE = 30;
         let PIECE_RADIUS = 11;  // 棋子半径
-        const MARGIN = 15;
+        let MARGIN = 8;  // 边缘缩小
         
         let board = [];
         let currentPlayer = 'black'; // black or white
