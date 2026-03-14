@@ -50,10 +50,46 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             outline: none;
+            max-width: 100vw;
+            max-height: 70vh;
         }
         
         canvas:focus {
             outline: none;
+        }
+        
+        /* 手机端响应式 */
+        @media (max-width: 500px) {
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 10px;
+            }
+            
+            .status {
+                font-size: 1rem;
+                padding: 8px 20px;
+                margin-bottom: 10px;
+            }
+            
+            .score {
+                gap: 20px;
+                margin-bottom: 10px;
+            }
+            
+            .player {
+                font-size: 0.9rem;
+                padding: 8px 15px;
+            }
+            
+            .controls {
+                margin-top: 15px;
+                gap: 10px;
+            }
+            
+            button {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
         }
         
         .controls {
@@ -175,8 +211,19 @@
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
         
+        // 响应式棋盘大小
+        function resizeCanvas() {
+            const screenWidth = window.innerWidth;
+            const maxSize = Math.min(screenWidth - 40, 450);
+            canvas.width = maxSize;
+            canvas.height = maxSize;
+            
+            // 重新计算格子大小
+            CELL_SIZE = (maxSize - 30) / (GRID_SIZE - 1);
+        }
+        
         const GRID_SIZE = 15;
-        const CELL_SIZE = 30;
+        let CELL_SIZE = 30;
         const MARGIN = 15;
         
         let board = [];
@@ -437,9 +484,17 @@
         }
         
         // 初始化
+        resizeCanvas();
         initBoard();
         draw();
         updateStatus();
+        
+        // 窗口大小改变时重新调整
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            offscreenCanvas = null;  // 重建离屏canvas
+            draw();
+        });
     </script>
 </body>
 </html>
