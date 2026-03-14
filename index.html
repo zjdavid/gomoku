@@ -325,6 +325,24 @@
             }
         });
         
+        // 触摸事件 - 阻止默认行为（手机端闪烁问题）
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            const col = Math.round((x - MARGIN) / CELL_SIZE);
+            const row = Math.round((y - MARGIN) / CELL_SIZE);
+            
+            if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                if (!board[row][col] && !gameOver) {
+                    placePiece(row, col);
+                }
+            }
+        }, { passive: false });
+        
         // 落子
         function placePiece(row, col) {
             history.push({row, col, player: currentPlayer});
